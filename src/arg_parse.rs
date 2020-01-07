@@ -30,6 +30,7 @@ pub struct MpwOptions {
     pub counter: i32,
     pub algo: String,
     pub context: String,
+    pub clip: bool,
 }
 
 pub fn get_opts() -> MpwOptions {
@@ -111,6 +112,11 @@ pub fn get_opts() -> MpwOptions {
                  .long("benchmark")
                  .help("Benchmarks this program")
                  .takes_value(false))
+        .arg(Arg::with_name("clip")
+                 .short("x")
+                 .long("clip")
+                 .help("Copy to clipboard (wayland only)")
+                 .takes_value(false))
         .get_matches();
 
     if matches.is_present("benchmark") {
@@ -171,6 +177,8 @@ pub fn get_opts() -> MpwOptions {
         None => String::new(),
     };
 
+    let clip = matches.is_present("clip");
+
     MpwOptions {
         site,
         user,
@@ -179,5 +187,6 @@ pub fn get_opts() -> MpwOptions {
         counter,
         algo,
         context,
+        clip,
     }
 }

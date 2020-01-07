@@ -23,6 +23,8 @@ mod benchmark;
 
 use std::io::{self, Write};
 use rpassword::read_password;
+use wl_clipboard_rs::copy::{ClipboardType, MimeType, Options, ServeRequests, Source};
+use nix::unistd::{fork, ForkResult};
 
 fn main() {
     let mpw_options = arg_parse::get_opts();
@@ -51,5 +53,25 @@ fn main() {
         None => panic!("Password Error"),
     };
 
-    println!("[ {} ]: {}", identity, password);
+    if !mpw_options.clip {
+        return println!("[ {} ]: {}", identity, password)
+    }
+
+    let mut options = Options::new();
+    options
+        .serve_requests(ServeRequests::Unlimited)
+        .foreground(true)
+        .clipboard(ClipboardType::Both)
+        .trim_newline(true);
+
+    let source = Source::Bytes(Box::from(password.as_bytes()));
+
+    if let Ok(prepared_copy) = options.prepare_copy(source, MimeType::Text) {
+        if let ForkResult::Child = fork().unwrap() {
+            println!("[ {} ]: copied to clipboard", identity);
+            drop(prepared_copy.serve());
+        }
+    } else {
+        eprintln!("[ {} ]: could not prepare copy", identity);
+    }
 }

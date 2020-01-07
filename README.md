@@ -34,3 +34,6 @@ To use the Argon2 based KDF instead of Scrypt:
 - **This should not be used for production** as the Argon2 params are experimental.
 - Uses `Argon2i(pass=1, lanes=4, mem=128MB)` as KDF instead of Scrypt.
 - **This is only available in the Rust version**.
+
+## Optional
+- `--clip` requires wayland
