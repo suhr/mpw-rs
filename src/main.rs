@@ -23,7 +23,10 @@ mod benchmark;
 
 use std::io::{self, Write};
 use rpassword::read_password;
+
+#[cfg(any(linux, unix))]
 use wl_clipboard_rs::copy::{ClipboardType, MimeType, Options, ServeRequests, Source};
+#[cfg(any(linux, unix))]
 use nix::unistd::{fork, ForkResult};
 
 fn main() {
@@ -57,6 +60,11 @@ fn main() {
         return println!("[ {} ]: {}", identity, password)
     }
 
+    copy_to_clipboard(password, identity);
+}
+
+#[cfg(target_os = "linux")]
+fn copy_to_clipboard(password: String, identity: String) {
     let mut options = Options::new();
     options
         .serve_requests(ServeRequests::Unlimited)
