@@ -21,6 +21,7 @@ mod core;
 mod common;
 mod benchmark;
 
+use std::env;
 use std::io::{self, Write};
 use rpassword::read_password;
 
@@ -31,6 +32,12 @@ use nix::unistd::{fork, ForkResult};
 
 fn main() {
     let mpw_options = arg_parse::get_opts();
+    let wants_clip = cfg!(any(linux, unix)) && mpw_options.clip;
+    let can_clip = env::var("WAYLAND_DISPLAY").is_ok();
+
+    if wants_clip && ! can_clip {
+        return eprintln!("Could not find WAYLAND_DISPLAY in env, refusing to continue with --clip");
+    }
 
     print!("Your master password: ");
     let _ = io::stdout().flush();
@@ -56,11 +63,11 @@ fn main() {
         None => panic!("Password Error"),
     };
 
-    if !mpw_options.clip {
-        return println!("[ {} ]: {}", identity, password)
+    if wants_clip && can_clip {
+        return copy_to_clipboard(password, identity);
     }
 
-    copy_to_clipboard(password, identity);
+    println!("[ {} ]: {}", identity, password)
 }
 
 #[cfg(target_os = "linux")]
