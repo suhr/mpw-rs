@@ -21,11 +21,23 @@ mod core;
 mod common;
 mod benchmark;
 
+use std::env;
 use std::io::{self, Write};
 use rpassword::read_password;
 
+#[cfg(any(linux, unix))]
+use wl_clipboard_rs::copy::{ClipboardType, MimeType, Options, ServeRequests, Source};
+#[cfg(any(linux, unix))]
+use nix::unistd::{fork, ForkResult};
+
 fn main() {
     let mpw_options = arg_parse::get_opts();
+    let wants_clip = cfg!(any(linux, unix)) && mpw_options.clip;
+    let can_clip = env::var("WAYLAND_DISPLAY").is_ok();
+
+    if wants_clip && ! can_clip {
+        return eprintln!("Could not find WAYLAND_DISPLAY in env, refusing to continue with --clip");
+    }
 
     print!("Your master password: ");
     let _ = io::stdout().flush();
@@ -51,5 +63,30 @@ fn main() {
         None => panic!("Password Error"),
     };
 
-    println!("[ {} ]: {}", identity, password);
+    if wants_clip && can_clip {
+        return copy_to_clipboard(password, identity);
+    }
+
+    println!("[ {} ]: {}", identity, password)
+}
+
+#[cfg(target_os = "linux")]
+fn copy_to_clipboard(password: String, identity: String) {
+    let mut options = Options::new();
+    options
+        .serve_requests(ServeRequests::Unlimited)
+        .foreground(true)
+        .clipboard(ClipboardType::Both)
+        .trim_newline(true);
+
+    let source = Source::Bytes(Box::from(password.as_bytes()));
+
+    if let Ok(prepared_copy) = options.prepare_copy(source, MimeType::Text) {
+        if let ForkResult::Child = fork().unwrap() {
+            println!("[ {} ]: copied to clipboard", identity);
+            drop(prepared_copy.serve());
+        }
+    } else {
+        eprintln!("[ {} ]: could not prepare copy", identity);
+    }
 }
